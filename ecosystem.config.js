@@ -5,9 +5,9 @@ const path = require('path');
 module.exports = {
   apps: [
     {
-      name: 'myapp',
+      name: 'nestjs-app',
       script: './dist/main.js',
-      instances: 'max', // Atau gunakan number spesfik seperti 2, 4
+      instances: Math.floor(require('os').cpus().length / 2), // Atau gunakan number spesfik seperti 2, 4
       exec_mode: 'cluster',
       
       // ✅ HTTPS Environment Variables
