@@ -5,19 +5,48 @@
   "author": "",
   "private": true,
   "license": "UNLICENSED",
-
   "scripts": {
+    "build": "nest build",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "start": "nest start",
+    "start:dev": "nest start --watch",
+    "start:debug": "nest start --debug --watch",
+    "start:prod": "node dist/main",
+    
     "ssl:generate": "node scripts/generate-ssl-windows.js",
     "ssl:generate:openssl": "openssl req -x509 -newkey rsa:2048 -nodes -keyout \"%USERPROFILE%\\key.pem\" -out \"%USERPROFILE%\\cert.pem\" -days 365 -subj \"/C=ID/ST=Jakarta/L=Jakarta/O=Development/CN=localhost\"",
     "ssl:generate:powershell": "powershell -Command \"$cert = New-SelfSignedCertificate -DnsName 'localhost' -CertStoreLocation 'cert:\\\\CurrentUser\\\\My'; $pwd = ConvertTo-SecureString -String 'temp123' -Force -AsPlainText; Export-PfxCertificate -Cert \\\"cert:\\\\CurrentUser\\\\My\\\\$($cert.Thumbprint)\\\" -FilePath \\\"$env:USERPROFILE\\\\temp.pfx\\\" -Password $pwd; openssl pkcs12 -in \\\"$env:USERPROFILE\\\\temp.pfx\\\" -nocerts -out \\\"$env:USERPROFILE\\\\key.pem\\\" -nodes -passin pass:temp123; openssl pkcs12 -in \\\"$env:USERPROFILE\\\\temp.pfx\\\" -clcerts -nokeys -out \\\"$env:USERPROFILE\\\\cert.pem\\\" -passin pass:temp123; Remove-Item \\\"$env:USERPROFILE\\\\temp.pfx\\\" -Force\"",
     "ssl:check": "node -e \"const fs=require('fs'); const os=require('os'); const path=require('path'); const keyPath=path.join(os.homedir(), 'key.pem'); const certPath=path.join(os.homedir(), 'cert.pem'); console.log('🔍 SSL Certificate Status:'); console.log('Key file:', keyPath, fs.existsSync(keyPath) ? '✅ EXISTS' : '❌ NOT FOUND'); console.log('Cert file:', certPath, fs.existsSync(certPath) ? '✅ EXISTS' : '❌ NOT FOUND'); if(fs.existsSync(keyPath) && fs.existsSync(certPath)) { const key = fs.readFileSync(keyPath, 'utf8'); const cert = fs.readFileSync(certPath, 'utf8'); console.log('Key format:', (key.includes('BEGIN PRIVATE KEY') || key.includes('BEGIN RSA PRIVATE KEY')) ? '✅ VALID' : '❌ INVALID'); console.log('Cert format:', cert.includes('BEGIN CERTIFICATE') ? '✅ VALID' : '❌ INVALID'); }\"",
+    
     "dev": "npm run ssl:generate && cross-env USE_HTTPS=true nest start --watch",
-    "dev:http": "cross-env USE_HTTPS=false nest start --watch"
-  }
-
-
-
-,
+    "dev:http": "cross-env USE_HTTPS=false nest start --watch",
+    
+    "build:prod": "npm run build && npm run ssl:check",
+    "build:deploy": "npm run build:prod && npm run pm2:deploy",
+    
+    "pm2:install": "npm install -g pm2",
+    "pm2:start": "pm2 start ecosystem.config.js --env production",
+    "pm2:start:dev": "pm2 start ecosystem.config.js --env development",
+    "pm2:stop": "pm2 stop myapp",
+    "pm2:restart": "pm2 restart myapp",
+    "pm2:reload": "pm2 reload myapp",
+    "pm2:delete": "pm2 delete myapp",
+    "pm2:logs": "pm2 logs myapp",
+    "pm2:status": "pm2 status",
+    "pm2:monit": "pm2 monit",
+    "pm2:deploy": "npm run build:prod && pm2 start ecosystem.config.js --env production",
+    "pm2:deploy:dev": "npm run build && pm2 start ecosystem.config.js --env development",
+    
+    "deploy": "npm run pm2:deploy",
+    "deploy:dev": "npm run pm2:deploy:dev",
+    
+    "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
+    "test": "jest",
+    "clean": "rimraf dist node_modules package-lock.json ssl",
+    "clean:install": "npm run clean && npm install && npm run build",
+    
+    "health": "curl -k https://localhost:3770/api/health || curl http://localhost:3770/api/health"
+  },
   "dependencies": {
     "@nestjs/axios": "^4.0.1",
     "@nestjs/common": "^11.0.1",
