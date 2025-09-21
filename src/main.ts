@@ -61,6 +61,8 @@ async function bootstrap() {
       'http://localhost:3770',
       'http://127.0.0.1:3770',
       'https://demo.osi.my.id',
+      'https:0.0.0.0:3770',
+      'https:0.0.0.0:4200',
       /^https:\/\/.*\.osi\.my\.id$/,
     ],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
