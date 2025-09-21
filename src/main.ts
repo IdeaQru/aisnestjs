@@ -1,4 +1,4 @@
-// backend/src/main.ts - Fixed TypeScript RegExp parameter types
+// backend/src/main.ts - Complete External Access Configuration
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe, Logger } from '@nestjs/common';
@@ -7,7 +7,6 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 
-// ✅ PROPER TYPE DEFINITIONS
 interface HttpsOptions {
   key: Buffer;
   cert: Buffer;
@@ -16,19 +15,16 @@ interface HttpsOptions {
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
   
-  // ✅ HTTPS Configuration
+  // ✅ Configuration
   const useHttps = process.env.USE_HTTPS !== 'false';
   const port = process.env.PORT || 3770;
-  const host = process.env.HOST || '0.0.0.0';
+  const host = process.env.HOST || '0.0.0.0'; // ✅ CRITICAL for external access
   
-  // ✅ PROPER TYPE: HttpsOptions | undefined instead of null
   let httpsOptions: HttpsOptions | undefined = undefined;
   
   if (useHttps) {
     try {
-      // ✅ ENHANCED: Certificate validation and repair
       httpsOptions = await loadAndValidateSSLCertificates(logger);
-      
     } catch (error) {
       logger.error('❌ Failed to load SSL certificates:', error.message);
       logger.warn('🔄 Falling back to HTTP...');
@@ -36,34 +32,62 @@ async function bootstrap() {
     }
   }
   
-  // ✅ FIXED: Proper NestApplicationOptions type
   const nestOptions: NestApplicationOptions = {
     logger: ['error', 'warn', 'log', 'debug', 'verbose'],
   };
   
-  // ✅ FIXED: Add httpsOptions only if it exists
   if (httpsOptions) {
     nestOptions.httpsOptions = httpsOptions;
   }
   
-  // ✅ Create NestJS application with proper options
   const app = await NestFactory.create(AppModule, nestOptions);
   
-  // ✅ ENHANCED CORS Configuration untuk HTTPS
+  // ✅ ENHANCED CORS Configuration for External Access
   app.enableCors({
     origin: [
+      // Local development
       'https://localhost:4200',
       'https://127.0.0.1:4200',
-      'https://localhost:3770',
-      'https://127.0.0.1:3770',
       'http://localhost:4200',
       'http://127.0.0.1:4200',
-      'http://localhost:3770',
-      'http://127.0.0.1:3770',
+      'https://localhost:3770',
+      'https://127.0.0.1:3770',
+      
+      // External IP patterns
+      /^https?:\/\/192\.168\.\d{1,3}\.\d{1,3}:4200$/,
+      /^https?:\/\/10\.\d{1,3}\.\d{1,3}\.\d{1,3}:4200$/,
+      /^https?:\/\/172\.(1[6-9]|2[0-9]|3[0-1])\.\d{1,3}\.\d{1,3}:4200$/,
+      
+      // Production domains
       'https://demo.osi.my.id',
-      'https:0.0.0.0:3770',
-      'https:0.0.0.0:4200',
       /^https:\/\/.*\.osi\.my\.id$/,
+      
+      // Dynamic origin function
+      (origin, callback) => {
+        if (!origin) return callback(null, true);
+        
+        logger.debug(`🔍 CORS Origin check: ${origin}`);
+        
+        // Allow localhost variants
+        if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
+          return callback(null, true);
+        }
+        
+        // Allow local network IPs
+        const localNetworkPattern = /^https?:\/\/(192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2[0-9]|3[0-1])\.\d{1,3}\.\d{1,3}):\d+$/;
+        if (localNetworkPattern.test(origin)) {
+          logger.log(`✅ Allowed local network origin: ${origin}`);
+          return callback(null, true);
+        }
+        
+        // Allow production domains
+        if (origin.includes('osi.my.id')) {
+          return callback(null, true);
+        }
+        
+        logger.warn(`⚠️ Blocked unknown origin: ${origin}`);
+        callback(new Error(`Origin ${origin} not allowed by CORS`), false);
+      }
     ],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: [
@@ -105,13 +129,17 @@ async function bootstrap() {
       res.header('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
     }
     
+    if (req.headers.origin) {
+      logger.debug(`📨 Request from origin: ${req.headers.origin}`);
+    }
+    
     next();
   });
   
   // ✅ Start server
   await app.listen(port, host);
   
-  // ✅ Log server information
+  // ✅ Enhanced logging
   const protocol = httpsOptions ? 'https' : 'http';
   const serverUrl = `${protocol}://${host}:${port}`;
   
@@ -119,14 +147,39 @@ async function bootstrap() {
   logger.log(`🚀 Backend running on ${serverUrl}`);
   logger.log(`📡 API available at ${serverUrl}/api`);
   logger.log(`🔒 SSL/HTTPS: ${httpsOptions ? 'ENABLED' : 'DISABLED'}`);
-  logger.log(`✅ CORS enabled for Angular frontends`);
+  logger.log(`🌐 Host: ${host} (external access: ${host === '0.0.0.0' ? 'ENABLED' : 'DISABLED'})`);
+  logger.log(`✅ CORS enabled with dynamic origin matching`);
   logger.log('🚀 =================================');
+  
+  // ✅ Show external access URLs
+  if (host === '0.0.0.0') {
+    const networkInterfaces = os.networkInterfaces();
+    const externalIPs: string[] = [];
+    
+    Object.keys(networkInterfaces).forEach(interfaceName => {
+      const addresses = networkInterfaces[interfaceName];
+      if (addresses) {
+        addresses.forEach(address => {
+          if (address.family === 'IPv4' && !address.internal) {
+            externalIPs.push(address.address);
+          }
+        });
+      }
+    });
+    
+    if (externalIPs.length > 0) {
+      logger.log('🌐 External access URLs:');
+      externalIPs.forEach(ip => {
+        logger.log(`   ${protocol}://${ip}:${port}/api`);
+      });
+    }
+  }
   
   logEndpoints(serverUrl);
   return app;
 }
 
-// ✅ FIXED: Enhanced certificate loading with proper TypeScript types
+// ✅ SSL Certificate Loading
 async function loadAndValidateSSLCertificates(logger: Logger): Promise<HttpsOptions | undefined> {
   const possiblePaths = [
     {
@@ -153,15 +206,12 @@ async function loadAndValidateSSLCertificates(logger: Logger): Promise<HttpsOpti
         logger.log(`   🔑 Key: ${keyPath}`);
         logger.log(`   📜 Certificate: ${certPath}`);
         
-        // ✅ Read and validate certificate files
         let keyContent = fs.readFileSync(keyPath, 'utf8');
         let certContent = fs.readFileSync(certPath, 'utf8');
         
-        // ✅ Clean and repair certificate content
         keyContent = repairPEMContent(keyContent, 'PRIVATE KEY', logger);
         certContent = repairPEMContent(certContent, 'CERTIFICATE', logger);
         
-        // ✅ Validate certificate format
         if (!validatePEMFormat(keyContent, 'PRIVATE KEY') || !validatePEMFormat(certContent, 'CERTIFICATE')) {
           logger.warn(`⚠️ Certificate format validation failed for ${description}`);
           continue;
@@ -172,7 +222,6 @@ async function loadAndValidateSSLCertificates(logger: Logger): Promise<HttpsOpti
           cert: Buffer.from(certContent),
         };
         
-        // ✅ Test certificate by creating a temporary server
         try {
           const https = require('https');
           const testServer = https.createServer(httpsOptions);
@@ -195,7 +244,7 @@ async function loadAndValidateSSLCertificates(logger: Logger): Promise<HttpsOpti
     }
   }
 
-  // ✅ If no valid certificates found, generate new ones
+  // Generate new certificates if none found
   logger.warn('⚠️ No valid SSL certificates found. Generating self-signed certificate...');
   const sslPath = path.join(process.cwd(), 'ssl');
   await generateSelfSignedCertificate(sslPath);
@@ -209,48 +258,26 @@ async function loadAndValidateSSLCertificates(logger: Logger): Promise<HttpsOpti
   };
 }
 
-// ✅ FIXED: Repair PEM content formatting with proper TypeScript types
 function repairPEMContent(content: string, type: string, logger: Logger): string {
   try {
-    // ✅ Remove any BOM or invisible characters
     content = content.replace(/^\uFEFF/, '');
-    
-    // ✅ Normalize line endings
     content = content.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-    
-    // ✅ Remove extra whitespace
     content = content.trim();
     
-    // ✅ FIXED: Fix common formatting issues with proper regex escaping
     const beginMarker = `-----BEGIN ${type}-----`;
     const endMarker = `-----END ${type}-----`;
     
-    // ✅ FIXED: Use string replace instead of RegExp constructor to avoid type issues
     const beginPattern = `${beginMarker}([A-Za-z0-9+/=])`;
     const endPattern = `([A-Za-z0-9+/=])${endMarker}`;
     
-    // ✅ FIXED: Create regex literals instead of using constructor
-    content = content.replace(
-      new RegExp(beginPattern, 'g'), 
-      `${beginMarker}\n$1`
-    );
-    content = content.replace(
-      new RegExp(endPattern, 'g'), 
-      `$1\n${endMarker}`
-    );
+    content = content.replace(new RegExp(beginPattern, 'g'), `${beginMarker}\n$1`);
+    content = content.replace(new RegExp(endPattern, 'g'), `$1\n${endMarker}`);
     
-    // ✅ FIXED: Fix concatenated certificates with string literals
     content = content.replace(
       /-----END CERTIFICATE----------BEGIN CERTIFICATE-----/g, 
       '-----END CERTIFICATE-----\n-----BEGIN CERTIFICATE-----'
     );
     
-    content = content.replace(
-      /-----END PRIVATE KEY----------BEGIN PRIVATE KEY-----/g, 
-      '-----END PRIVATE KEY-----\n-----BEGIN PRIVATE KEY-----'
-    );
-    
-    // ✅ Ensure proper base64 line length (64 characters max)
     const lines: string[] = content.split('\n');
     const repairedLines: string[] = [];
     
@@ -258,7 +285,6 @@ function repairPEMContent(content: string, type: string, logger: Logger): string
       if (line.startsWith('-----') || line.trim() === '') {
         repairedLines.push(line);
       } else {
-        // Split long base64 lines
         while (line.length > 64) {
           repairedLines.push(line.substring(0, 64));
           line = line.substring(64);
@@ -283,7 +309,6 @@ function repairPEMContent(content: string, type: string, logger: Logger): string
   }
 }
 
-// ✅ FIXED: Validate PEM format with proper TypeScript types
 function validatePEMFormat(content: string, type: string): boolean {
   const beginMarker = `-----BEGIN ${type}-----`;
   const endMarker = `-----END ${type}-----`;
@@ -292,7 +317,6 @@ function validatePEMFormat(content: string, type: string): boolean {
     return false;
   }
   
-  // ✅ Extract base64 content
   const beginIndex = content.indexOf(beginMarker) + beginMarker.length;
   const endIndex = content.indexOf(endMarker);
   
@@ -300,15 +324,11 @@ function validatePEMFormat(content: string, type: string): boolean {
     return false;
   }
   
-  const base64Content = content.substring(beginIndex, endIndex)
-    .replace(/\s/g, ''); // Remove all whitespace
-  
-  // ✅ FIXED: Validate base64 format with regex literal
+  const base64Content = content.substring(beginIndex, endIndex).replace(/\s/g, '');
   const base64Regex = /^[A-Za-z0-9+/]*={0,2}$/;
   return base64Regex.test(base64Content);
 }
 
-// ✅ Helper function to generate self-signed certificate
 async function generateSelfSignedCertificate(sslPath: string): Promise<void> {
   const { execSync } = require('child_process');
   
@@ -331,22 +351,10 @@ async function generateSelfSignedCertificate(sslPath: string): Promise<void> {
     }
     
   } catch (error) {
-    // ✅ Fallback: Create basic self-signed certificate with Node.js
+    // Fallback certificate generation
     const basicKey = `-----BEGIN PRIVATE KEY-----
 MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQC7VJTUt9Us8cKB
 wEiOfH3nzL7ZJvY1hKBYh9n+2c5f7cKBwEiOfH3nzL7ZJvY1hKBYh9n+2c5f7c
-KBwEiOfH3nzL7ZJvY1hKBYh9n+2c5f7cKBwEiOfH3nzL7ZJvY1hKBYh9n+2c5f
-7cKBwEiOfH3nzL7ZJvY1hKBYh9n+2c5f7cKBwEiOfH3nzL7ZJvY1hKBYh9n+2c
-5f7cKBwEiOfH3nzL7ZJvY1hKBYh9n+2c5f7cKBwEiOfH3nzL7ZJvY1hKBYh9n+
-2c5f7cKBwEiOfH3nzL7ZJvY1hKBYh9n+2c5f7cKBwEiOfH3nzL7ZJvY1hKBYh9
-n+2c5f7cQIDAQABAoIBAEuJ2BnZVU5YwTJjKyHJ2BnZVU5YwTJjKyHJ2BnZVU5Y
-wTJjKyHJ2BnZVU5YwTJjKyHJ2BnZVU5YwTJjKyHJ2BnZVU5YwTJjKyHJ2BnZVU
-5YwTJjKyHJ2BnZVU5YwTJjKyHJ2BnZVU5YwTJjKyHJ2BnZVU5YwTJjKyHJ2BnZ
-VU5YwTJjKyHJ2BnZVU5YwTJjKyHJ2BnZVU5YwTJjKyHJ2BnZVU5YwTJjKyHJ2B
-nZVU5YwTJjKyHJ2BnZVU5YwTJjKyHJ2BnZVU5YwTJjKyHJ2BnZVU5YwTJjKyHJ
-2BnZVU5YwTJjKyHJ2BnZVU5YwTJjKyHJ2BnZVU5YwTJjKyHJ2BnZVU5YwTJjKy
-HJ2BnZVU5YwTJjKyHJ2BnZVU5YwTJjKyHJ2BnZVU5YwTJjKyHJ2BnZVU5YwTJj
-KyECgYEA4YwTJjKyHJ2BnZVU5YwTJjKyHJ2BnZVU5YwTJjKyHJ2BnZVU5Y
 -----END PRIVATE KEY-----`;
 
     const basicCert = `-----BEGIN CERTIFICATE-----
@@ -354,17 +362,6 @@ MIIDXTCCAkWgAwIBAgIJAKoK/OvD1234wDQYJKoZIhvcNAQELBQAwXjELMAkGA1UE
 BhMCSUQxEDAOBgNVBAgTB0pha2FydGExEDAOBgNVBAcTB0pha2FydGExFDASBgNV
 BAoTC0RldmVsb3BtZW50MRUwEwYDVQQDEwxsb2NhbGhvc3QuY29tMB4XDTIzMDEw
 MTAwMDAwMFoXDTI0MDEwMTAwMDAwMFowXjELMAkGA1UEBhMCSUQxEDAOBgNVBAgT
-B0pha2FydGExEDAOBgNVBAcTB0pha2FydGExFDASBgNVBAoTC0RldmVsb3BtZW50
-MRUwEwYDVQQDEwxsb2NhbGhvc3QuY29tMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A
-MIIBCgKCAQEAt1SU1LfVLPHCgcBIjnx9586+2Sb2NYSgWIfZ/tnOX+3CgcBIjnx9
-586+2Sb2NYSgWIfZ/tnOX+3CgcBIjnx9586+2Sb2NYSgWIfZ/tnOX+3CgcBIjnx9
-586+2Sb2NYSgWIfZ/tnOX+3CgcBIjnx9586+2Sb2NYSgWIfZ/tnOX+3CgcBIjnx9
-586+2Sb2NYSgWIfZ/tnOX+3CgcBIjnx9586+2Sb2NYSgWIfZ/tnOX+wIDAQABo1Mw
-UTAdBgNVHQ4EFgQU5Q6P7LKU1I2abCDefH3nzL7ZJvYwHwYDVR0jBBgwFoAU5Q6P
-7LKU1I2abCDefH3nzL7ZJvYwDwYDVR0TAQH/BAUwAwEB/zANBgkqhkiG9w0BAQsF
-AAOCAQEAT1SU1LfVLPHCgcBIjnx9586+2Sb2NYSgWIfZ/tnOX+3CgcBIjnx9586+
-2Sb2NYSgWIfZ/tnOX+3CgcBIjnx9586+2Sb2NYSgWIfZ/tnOX+3CgcBIjnx9586+
-2Sb2NYSgWIfZ/tnOX+3CgcBIjnx9586+2Sb2NYSgWIfZ/tnOX+3CgcBIjnx9586+
 -----END CERTIFICATE-----`;
 
     fs.writeFileSync(keyPath, basicKey);
@@ -376,13 +373,14 @@ function logEndpoints(baseUrl: string): void {
   const logger = new Logger('Endpoints');
   
   logger.log('📍 Available endpoints:');
-  logger.log(`   Health Check: ${baseUrl}/api/health`);
-  logger.log(`   Vessels API: ${baseUrl}/api/vessels`);
-  logger.log(`   VTS API: ${baseUrl}/api/vts`);
-  logger.log(`   AtoN API: ${baseUrl}/api/aton`);
-  logger.log(`   WebSocket: ${baseUrl}/socket.io/`);
+  logger.log(`   Health: ${baseUrl}/api/health`);
+  logger.log(`   Vessels: ${baseUrl}/api/vessels`);
+  logger.log(`   VTS: ${baseUrl}/api/vts`);
+  logger.log(`   AtoN: ${baseUrl}/api/aton`);
+  logger.log(`   WebSocket: ${baseUrl.replace('/api', '')}/socket.io/`);
 }
 
+// ✅ Graceful shutdown handlers
 const gracefulShutdown = (signal: string) => {
   console.log(`🛑 ${signal} received, shutting down gracefully`);
   process.exit(0);
