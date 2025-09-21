@@ -19,7 +19,7 @@ async function bootstrap() {
   // ✅ HTTPS Configuration
   const useHttps = process.env.USE_HTTPS !== 'false';
   const port = process.env.PORT || 3770;
-  const host = process.env.HOST || 'localhost';
+  const host = process.env.HOST || '0.0.0.0';
   
   // ✅ PROPER TYPE: HttpsOptions | undefined instead of null
   let httpsOptions: HttpsOptions | undefined = undefined;
