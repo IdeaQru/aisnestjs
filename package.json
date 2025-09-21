@@ -13,11 +13,11 @@
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
     
-    "ssl:generate": "node scripts/generate-ssl-windows.js",
-    "ssl:generate:openssl": "openssl req -x509 -newkey rsa:2048 -nodes -keyout \"%USERPROFILE%\\key.pem\" -out \"%USERPROFILE%\\cert.pem\" -days 365 -subj \"/C=ID/ST=Jakarta/L=Jakarta/O=Development/CN=localhost\"",
-    "ssl:generate:powershell": "powershell -Command \"$cert = New-SelfSignedCertificate -DnsName 'localhost' -CertStoreLocation 'cert:\\\\CurrentUser\\\\My'; $pwd = ConvertTo-SecureString -String 'temp123' -Force -AsPlainText; Export-PfxCertificate -Cert \\\"cert:\\\\CurrentUser\\\\My\\\\$($cert.Thumbprint)\\\" -FilePath \\\"$env:USERPROFILE\\\\temp.pfx\\\" -Password $pwd; openssl pkcs12 -in \\\"$env:USERPROFILE\\\\temp.pfx\\\" -nocerts -out \\\"$env:USERPROFILE\\\\key.pem\\\" -nodes -passin pass:temp123; openssl pkcs12 -in \\\"$env:USERPROFILE\\\\temp.pfx\\\" -clcerts -nokeys -out \\\"$env:USERPROFILE\\\\cert.pem\\\" -passin pass:temp123; Remove-Item \\\"$env:USERPROFILE\\\\temp.pfx\\\" -Force\"",
-    "ssl:check": "node -e \"const fs=require('fs'); const os=require('os'); const path=require('path'); const keyPath=path.join(os.homedir(), 'key.pem'); const certPath=path.join(os.homedir(), 'cert.pem'); console.log('🔍 SSL Certificate Status:'); console.log('Key file:', keyPath, fs.existsSync(keyPath) ? '✅ EXISTS' : '❌ NOT FOUND'); console.log('Cert file:', certPath, fs.existsSync(certPath) ? '✅ EXISTS' : '❌ NOT FOUND'); if(fs.existsSync(keyPath) && fs.existsSync(certPath)) { const key = fs.readFileSync(keyPath, 'utf8'); const cert = fs.readFileSync(certPath, 'utf8'); console.log('Key format:', (key.includes('BEGIN PRIVATE KEY') || key.includes('BEGIN RSA PRIVATE KEY')) ? '✅ VALID' : '❌ INVALID'); console.log('Cert format:', cert.includes('BEGIN CERTIFICATE') ? '✅ VALID' : '❌ INVALID'); }\"",
+    "ssl:generate": "openssl req -x509 -newkey rsa:2048 -nodes -sha256 -days 365 -keyout \"%USERPROFILE%/key.pem\" -out \"%USERPROFILE%/cert.pem\" -subj \"/C=ID/ST=Jakarta/L=Jakarta/O=Development/CN=localhost\" -addext \"subjectAltName=DNS:localhost,DNS:127.0.0.1,IP:127.0.0.1,IP:192.168.1.2\"",
     
+    "ssl:generate:interactive": "openssl req -x509 -newkey rsa:2048 -nodes -sha256 -days 365 -keyout \"%USERPROFILE%/key.pem\" -out \"%USERPROFILE%/cert.pem\" -addext \"subjectAltName=DNS:localhost,DNS:127.0.0.1,IP:127.0.0.1,IP:192.168.1.2\"",
+    
+    "ssl:check": "node -e \"const fs=require('fs'); const os=require('os'); const path=require('path'); const keyPath=path.join(os.homedir(), 'key.pem'); const certPath=path.join(os.homedir(), 'cert.pem'); console.log('🔍 SSL Certificate Status:'); console.log('Key file:', keyPath, fs.existsSync(keyPath) ? '✅ EXISTS' : '❌ NOT FOUND'); console.log('Cert file:', certPath, fs.existsSync(certPath) ? '✅ EXISTS' : '❌ NOT FOUND');\"",
     "dev": "npm run ssl:generate && cross-env USE_HTTPS=true nest start --watch",
     "dev:http": "cross-env USE_HTTPS=false nest start --watch",
     
