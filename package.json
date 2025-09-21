@@ -1,0 +1,97 @@
+{
+  "name": "myapp",
+  "version": "0.0.1",
+  "description": "",
+  "author": "",
+  "private": true,
+  "license": "UNLICENSED",
+
+  "scripts": {
+    "ssl:generate": "node scripts/generate-ssl-windows.js",
+    "ssl:generate:openssl": "openssl req -x509 -newkey rsa:2048 -nodes -keyout \"%USERPROFILE%\\key.pem\" -out \"%USERPROFILE%\\cert.pem\" -days 365 -subj \"/C=ID/ST=Jakarta/L=Jakarta/O=Development/CN=localhost\"",
+    "ssl:generate:powershell": "powershell -Command \"$cert = New-SelfSignedCertificate -DnsName 'localhost' -CertStoreLocation 'cert:\\\\CurrentUser\\\\My'; $pwd = ConvertTo-SecureString -String 'temp123' -Force -AsPlainText; Export-PfxCertificate -Cert \\\"cert:\\\\CurrentUser\\\\My\\\\$($cert.Thumbprint)\\\" -FilePath \\\"$env:USERPROFILE\\\\temp.pfx\\\" -Password $pwd; openssl pkcs12 -in \\\"$env:USERPROFILE\\\\temp.pfx\\\" -nocerts -out \\\"$env:USERPROFILE\\\\key.pem\\\" -nodes -passin pass:temp123; openssl pkcs12 -in \\\"$env:USERPROFILE\\\\temp.pfx\\\" -clcerts -nokeys -out \\\"$env:USERPROFILE\\\\cert.pem\\\" -passin pass:temp123; Remove-Item \\\"$env:USERPROFILE\\\\temp.pfx\\\" -Force\"",
+    "ssl:check": "node -e \"const fs=require('fs'); const os=require('os'); const path=require('path'); const keyPath=path.join(os.homedir(), 'key.pem'); const certPath=path.join(os.homedir(), 'cert.pem'); console.log('🔍 SSL Certificate Status:'); console.log('Key file:', keyPath, fs.existsSync(keyPath) ? '✅ EXISTS' : '❌ NOT FOUND'); console.log('Cert file:', certPath, fs.existsSync(certPath) ? '✅ EXISTS' : '❌ NOT FOUND'); if(fs.existsSync(keyPath) && fs.existsSync(certPath)) { const key = fs.readFileSync(keyPath, 'utf8'); const cert = fs.readFileSync(certPath, 'utf8'); console.log('Key format:', (key.includes('BEGIN PRIVATE KEY') || key.includes('BEGIN RSA PRIVATE KEY')) ? '✅ VALID' : '❌ INVALID'); console.log('Cert format:', cert.includes('BEGIN CERTIFICATE') ? '✅ VALID' : '❌ INVALID'); }\"",
+    "dev": "npm run ssl:generate && cross-env USE_HTTPS=true nest start --watch",
+    "dev:http": "cross-env USE_HTTPS=false nest start --watch"
+  }
+
+
+
+,
+  "dependencies": {
+    "@nestjs/axios": "^4.0.1",
+    "@nestjs/common": "^11.0.1",
+    "@nestjs/config": "^4.0.2",
+    "@nestjs/core": "^11.0.1",
+    "@nestjs/mongoose": "^11.0.3",
+    "@nestjs/platform-express": "^11.0.1",
+    "@nestjs/platform-socket.io": "^11.1.6",
+    "@nestjs/schedule": "^6.0.1",
+    "@nestjs/swagger": "^11.2.0",
+    "@nestjs/websockets": "^11.1.6",
+    "axios": "^1.12.2",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.2",
+    "compression": "^1.8.1",
+    "helmet": "^8.1.0",
+    "mongoose": "^8.18.1",
+    "morgan": "^1.10.1",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1",
+    "socket.io": "^4.8.1",
+    "swagger-ui-express": "^5.0.1"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.2.0",
+    "@eslint/js": "^9.18.0",
+    "@nestjs/cli": "^11.0.0",
+    "@nestjs/schematics": "^11.0.0",
+    "@nestjs/testing": "^11.0.1",
+    "@types/axios": "^0.9.36",
+    "@types/express": "^5.0.0",
+    "@types/jest": "^30.0.0",
+    "@types/mongoose": "^5.11.96",
+    "@types/node": "^22.10.7",
+    "@types/socket.io": "^3.0.1",
+    "@types/supertest": "^6.0.2",
+    "@types/swagger-ui-express": "^4.1.8",
+    "cross-env": "^7.0.3",
+    "del-cli": "^6.0.0",
+    "eslint": "^9.18.0",
+    "eslint-config-prettier": "^10.0.1",
+    "eslint-plugin-prettier": "^5.2.2",
+    "globals": "^16.0.0",
+    "jest": "^30.0.0",
+    "nodemon": "^3.1.10",
+    "prettier": "^3.4.2",
+    "source-map-support": "^0.5.21",
+    "supertest": "^7.0.0",
+    "ts-jest": "^29.2.5",
+    "ts-loader": "^9.5.2",
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.20.0"
+  },
+  "jest": {
+    "moduleFileExtensions": [
+      "js",
+      "json",
+      "ts"
+    ],
+    "rootDir": "src",
+    "testRegex": ".*\\.spec\\.ts$",
+    "transform": {
+      "^.+\\.(t|j)s$": "ts-jest"
+    },
+    "collectCoverageFrom": [
+      "**/*.(t|j)s"
+    ],
+    "coverageDirectory": "../coverage",
+    "testEnvironment": "node"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
+}
