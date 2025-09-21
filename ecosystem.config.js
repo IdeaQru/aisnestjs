@@ -7,7 +7,7 @@ module.exports = {
     {
       name: 'nestjs-app',
       script: './dist/main.js',
-      instances: Math.floor(require('os').cpus().length / 2), // Atau gunakan number spesfik seperti 2, 4
+      instances: 1, // Atau gunakan number spesfik seperti 2, 4
       exec_mode: 'cluster',
       
       // ✅ HTTPS Environment Variables
